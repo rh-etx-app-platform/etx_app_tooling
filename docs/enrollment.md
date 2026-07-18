@@ -46,7 +46,7 @@ export FACTORY_PASSWORD="your-factory-password"
 
 # ArgoCD settings (leave defaults)
 export CLUSTER_NAME="staging"
-export ARGOCD_NAMESPACE="etx-gitops"
+export ARGOCD_NAMESPACE="etx-app-dev"
 ```
 
 ### Step 3: Run the Script
@@ -151,7 +151,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: cluster-staging
-  namespace: etx-gitops
+  namespace: etx-app-dev
   labels:
     argocd.argoproj.io/secret-type: cluster
 type: Opaque
@@ -173,11 +173,11 @@ EOF
 Check cluster secret exists:
 
 ```bash
-oc get secret cluster-staging -n etx-gitops
+oc get secret cluster-staging -n etx-app-dev
 ```
 
 Verify in ArgoCD UI:
-1. Open ArgoCD: https://etx-gitops-server-etx-gitops.apps.cluster-YOUR-FACTORY.dyn.redhatworkshops.io
+1. Open ArgoCD: https://argocd-server-etx-app-dev.apps.cluster-YOUR-FACTORY.dyn.redhatworkshops.io
 2. Login with Keycloak SSO
 3. Go to Settings > Clusters
 4. Verify "staging" cluster is listed
@@ -208,7 +208,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: my-app-staging
-  namespace: etx-gitops
+  namespace: etx-app-dev
 spec:
   project: default
   source:
@@ -240,12 +240,12 @@ The promotion pipeline in the workshop uses this enrollment to:
 
 Check cluster secret exists:
 ```bash
-oc get secret cluster-staging -n etx-gitops -o yaml
+oc get secret cluster-staging -n etx-app-dev -o yaml
 ```
 
 Check ArgoCD logs:
 ```bash
-oc logs -n etx-gitops deployment/etx-gitops-application-controller
+oc logs -n etx-app-dev deployment/etx-gitops-application-controller
 ```
 
 ### Connection Failed
