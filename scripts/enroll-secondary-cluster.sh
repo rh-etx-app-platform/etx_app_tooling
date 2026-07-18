@@ -33,7 +33,7 @@ FACTORY_PASSWORD="${FACTORY_PASSWORD:-changeme}"
 
 # ArgoCD cluster registration settings
 CLUSTER_NAME="${CLUSTER_NAME:-staging}"
-ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-etx-gitops}"
+ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-etx-app-dev}"
 TOKEN_DURATION="${TOKEN_DURATION:-8760h}"
 
 # =================================================
