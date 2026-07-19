@@ -136,8 +136,23 @@ spec:
   installPlanApproval: Automatic
 EOF
 
-log_info "Waiting for operators to be ready (60s)..."
-sleep 60
+log_info "Installing Red Hat build of OpenTelemetry operator..."
+cat <<EOF | oc apply -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: opentelemetry-product
+  namespace: openshift-operators
+spec:
+  channel: stable
+  name: opentelemetry-product
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  installPlanApproval: Automatic
+EOF
+
+log_info "Waiting for operators to be ready (90s)..."
+sleep 90
 
 log_info "Deploying PostgreSQL database in etx-app-staging..."
 cat <<'EOF' | oc apply -f -
@@ -295,7 +310,58 @@ spec:
     segment.bytes: 1073741824
 EOF
 
-log_info "Supporting services deployment initiated (will take 2-3 minutes to be fully ready)"
+log_info "Deploying OpenTelemetry Collector in etx-app-staging..."
+cat <<'EOF' | oc apply -f -
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: otel-collector
+  namespace: etx-app-staging
+spec:
+  mode: deployment
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch: {}
+      probabilistic_sampler:
+        sampling_percentage: 100.0
+    exporters:
+      debug:
+        verbosity: detailed
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [probabilistic_sampler, batch]
+          exporters: [debug]
+EOF
+
+log_info "Configuring OpenTelemetry auto-instrumentation for Java in etx-app-staging..."
+cat <<'EOF' | oc apply -f -
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: java-instrumentation
+  namespace: etx-app-staging
+spec:
+  exporter:
+    endpoint: http://otel-collector-collector:4317
+  propagators:
+    - tracecontext
+    - baggage
+  sampler:
+    type: always_on
+  java:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:latest
+EOF
+
+log_info "Supporting services deployment initiated (will take 3-4 minutes to be fully ready)"
 
 # Step 2: Register runtime cluster in factory ArgoCD
 log_step "Step 2: Registering runtime cluster in factory ArgoCD"
@@ -353,8 +419,11 @@ Supporting services deployed:
 - PostgreSQL (parasol-db) in etx-app-staging
 - Kafka cluster (parasol-kafka) in etx-app-staging
 - Kafka topic (intake)
+- OpenTelemetry Collector (otel-collector) in etx-app-staging
+- OpenTelemetry auto-instrumentation (java-instrumentation)
 - AMQ Streams operator
 - OpenShift Pipelines operator
+- Red Hat build of OpenTelemetry operator
 
 Next steps:
 1. Verify cluster in ArgoCD UI:
@@ -365,6 +434,8 @@ Next steps:
    oc get pods -n etx-app-staging
    oc get kafka -n etx-app-staging
    oc get kafkatopic -n etx-app-staging
+   oc get opentelemetrycollector -n etx-app-staging
+   oc get instrumentation -n etx-app-staging
 
 3. Create Applications targeting runtime cluster:
    apiVersion: argoproj.io/v1alpha1
